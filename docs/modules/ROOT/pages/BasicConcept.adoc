@@ -1,17 +1,20 @@
-= Basic Concept
-:description: The basic concepts of FicsIt-Networks like network setup and interaction.
+= Basic Concepts
+:description: The basic concepts of FicsIt-Networks, including network setup and interaction.
+
+== Lua
+Lua is a real-world development language used by all FicsIt-Networks products. Accept no substitutes! (They won't work.) Many of the concepts in the documentation reference Lua's language (e.g., functions, signals). Find information on Lua on the (non-FicsIt-Networks) http://www.lua.org/docs.html[documentation page].
 
 == Network Connector
 
-A Network Connector is simply a point of a building were you can connect a network cable to and so, connect multiple different network components with eachother.
+A Network Connector is simply a point on a building to where a network cable connects. This enables connecting multiple different network components with each other.
 
-The Network Connector is also a Network Component itself.
+The Network Connector is also a Network Component.
 
 == Network Component
 
-A Network Component is anything that is connected to the network and can provide a interface for interactions to the network.
+Anything connected to the network which provides a target for interactions with the network is called a network component.
 
-Network Components can be identified indifidually by their ID which is a guid (a implementation of UUID)
+Network Components are uniquely identified using their ID, unique to your entire FicsIt-Networks environment (referred to as a UUID).
 
 Example::
 +
@@ -19,8 +22,8 @@ Example::
 0123456789abcdef0123456789abcdef
 ```
 
-Network Components can have nick, wich is a list of custom names sepperated by spaces allowing you to group and name your network components.
-Nick filers are then used to check if a network component has specific nicknames.
+Network Components can have nicknames ("nicks"): custom names, separated by spaces, allowing you to group and name your network components.
+Nick filters are then used to check if a network component has a specific nickname or nicknames.
 
 Example::
 +
@@ -32,36 +35,34 @@ nick2 = "Power" -- nick2 with name "Power"
 filter1 = "Power" -- nick filter maches nick1 and nick2
 filter2 = "Test" -- nick filter maches only nick1
 filter3 = "Test Power" -- nick filter maches only nick1
-filter4 = "Power Nice" -- nick filter maches noone
-filter5 = "" -- nick filter maches every component (also components with no nick)
+filter4 = "Power Nice" -- nick filter maches none
+filter5 = "" -- nick filter matches every component, even components without nicks
 ----
 
-=== Lua
+=== Lua use in FicsIt-Networks
+Every network component is represented in lua as an object in the Lua-Component-Structure table.
+The table contains variables for identification of the structure itself and the member component.
+Most importantly, the network component object in the table contains all functions available to the component.
 
-Every network component can be representated in lua as a table, the Lua-Component-Structure.
-This Table contains some variables for identification of the structure itself and also the component.
-But most important of all is, this table contains all functions provided by the component.
+_*Note:* Disconnecting a network component while the Lua runtime is maintaining data for the component invalidates the component pointer. If you (or the system) tries to execute the function, the Lua runtime will crash. When the component reconnects to the network, its internal pointer is refreshed and the object can be referenced again._
 
-If the component disconnects from the network while the runtime contains a function value of this component the internal component pointer goes invalid, that means if you then try to execute the function, the Lua runtime will crash. If the component reconnects to the network, so does also the internal pointer get back valid so you can call it safely.
-
-To get the Lua-Instance of a component you can use the `Component component.proxy(string)` function.
-
-To learn more, visit the xref:lua/api/Component.adoc[Component API page].
+To get the Lua-Instance of a component, use the `Component component.proxy(string)` function. To learn more, visit the xref:lua/api/Component.adoc[Component API page].
 
 === Functions
+Most network components provide simple functions for interacting with them. 
+* Functions may have multiple input parameters which are *all* required. This means there are no default parameter values.
+* Function may have multiple output values, which all will be returned.
+* The network does not permit function overloading (having the different functions with the same name referenced depending on parameters passed).
 
-Most network components provide simple functions for interacting with them via the network.
-Each of these functions can have multiple input parameters which are all required. That also means that there is no function overloading or default values.
-Also, quite interessting is, a function can have multiple output values which all will exist.
-
-In this documentation we use **most of the time (not always)** this declaration scheme:
+In this documentation, we use **most of the time** the following declaration scheme:
 
 [source,Lua]
 ----
 outType [outName], ... funcName([inType] inName, ...)
 ----
 
-Examples:
+To call a function in Lua, get the Lua-Instance, then call the member function in that table as method `:`. for example:
+
 [source,Lua]
 ----
 int, string name test(rly, num howOften)
@@ -71,26 +72,31 @@ string getName(id)
 count getAmount(string)
 ----
 
+:This is not a full function. Use a simple "Hello, World" function that, for example, pulls current storage container quantity for something with the nickname "plover." Or something similar. If I can get my brain around Lua fast enough, I'll put that in myself. Let me know how you want to run with this.
+
+Declarations in this documentation use the same scheme as for functions.
+
 ==== Lua
 
-To call such a function in Lua you simply need to get the Lua-Instance and call the member function in that table as method `:`.
-
-If you want to get a list of all member of the Lua instnace's functions and attributes, you can use the `string[] getMembers()` function.
+To get a list of all member functions and attributes of the Lua instnace, use the `string[] getMembers()` function.
+:Make another example box showing _exactly_ that.
 
 === Signals
 
-Signals are quite important because they allow us to listen for events happening in a network. That means we get notified when something happens and don't need to ask if there happend anything every tick.
+Signals let us to listen for events occurring in a network. That means network components can be notified when something happens, and they don't need to continously query if there's been "interesting" activity.
 
-When a signal occurs the signal gets added to the signalqueue of every computer subscribed to the object.
+If a computer wants to receive signals from a network object (or from a matching group of nicks), it must subscribe to (listen for) the instance.
+
+When an event occurs on a network component, a signal to that effect is appended to the signalqueue of every computer listening for (subscribed to) that object.
+
 The signalqueue size depends on the configuration of the host.
-If the queue is full, every further signal gets dropped until the queue has again place for new signals.
+:Unclear. My proposed rewrite: The size of a listening network component's queue depends on how it's configured for that specific component. 
 
-If a computer wants to recieve the signals of a object, he needs to subscribe to the instance (listen to the instance). A computer can just subscribe once at a time to the same instance, but it can subscribe to multiple different ones at the same time.
+If a signalqueue fills, each new signal drops the oldest signal in the queue.
+
 
 ==== Lua
 
-If you want to listen to a instance you need to get the Lua-Instance and pass it to the `event.listen(Instance)` function.
+If you want to listen to a component, find its Lua-Instance and pass it to the `event.listen(Instance)` function.
 
 To learn more, visit the xref:lua/api/Event.adoc#_listencomponent[Event API page].
-
-For declarations in this documentation we use the same scheme as for functions.
